@@ -1,50 +1,177 @@
-# Welcome to your Expo app 👋
+# PodScribe
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+AI-powered podcast transcription app built with Expo, Supabase, Modal.com, and Groq.
 
-## Get started
+## Stack
 
-1. Install dependencies
+| Layer | Technology |
+|-------|-----------|
+| Mobile | Expo SDK 54, Expo Router, NativeWind, TypeScript |
+| State | Zustand (client), TanStack Query (server) |
+| Auth + DB | Supabase (PostgreSQL + Auth + Edge Functions) |
+| Transcription | Modal.com + WhisperX (GPU) |
+| AI Summaries | Groq API (Llama 3.1 70B) |
+| Podcast data | Podcast Index API |
 
-   ```bash
-   npm install
-   ```
+## Project Structure
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+podcast-transcriptor/        ← Expo mobile app (this directory)
+├── app/
+│   ├── (auth)/              ← Login / Signup screens
+│   ├── (tabs)/              ← Search, Library, Profile tabs
+│   └── transcript/[id].tsx  ← Transcript viewer with audio player
+├── components/              ← Reusable UI components
+├── lib/                     ← Supabase client, API helpers, types
+├── store/                   ← Zustand global state
+│
+├── supabase/
+│   ├── migrations/          ← PostgreSQL schema
+│   └── functions/           ← Deno Edge Functions
+│       ├── fetch-podcast/   ← RSS parsing + Podcast Index search
+│       ├── start-transcription/  ← Creates job, triggers Modal
+│       └── generate-summary/    ← Groq AI summary + chapters
+│
+└── modal-worker/            ← Python WhisperX transcription worker
+    ├── main.py              ← Modal app + webhook endpoint
+    └── transcribe.py        ← WhisperX pipeline
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Setup
 
-## Learn more
+### 1. Get API Keys
 
-To learn more about developing your project with Expo, look at the following resources:
+| Service | URL | Notes |
+|---------|-----|-------|
+| Supabase | https://supabase.com | Free tier works |
+| Podcast Index | https://api.podcastindex.org | Free |
+| Groq | https://console.groq.com | Free tier: 14,400 req/day |
+| Modal.com | https://modal.com | Free $30/month credit |
+| HuggingFace | https://huggingface.co | Optional, for speaker diarization |
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 2. Supabase setup
 
-## Join the community
+```bash
+# Install Supabase CLI
+npm install -g supabase
 
-Join our community of developers creating universal apps.
+# Link to your project
+supabase login
+supabase link --project-ref YOUR_PROJECT_ID
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# Run migrations
+supabase db push
+
+# Set Edge Function secrets
+supabase secrets set PODCAST_INDEX_API_KEY=xxx
+supabase secrets set PODCAST_INDEX_API_SECRET=xxx
+supabase secrets set GROQ_API_KEY=xxx
+supabase secrets set MODAL_WEBHOOK_URL=https://your-app.modal.run/webhook
+
+# Deploy Edge Functions
+supabase functions deploy fetch-podcast
+supabase functions deploy start-transcription
+supabase functions deploy generate-summary
+```
+
+### 3. Modal.com setup
+
+```bash
+pip install modal
+modal setup   # authenticate
+
+# Create secrets (used by the transcription function)
+modal secret create podscribe-secrets \
+  SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
+  SUPABASE_SERVICE_KEY=your_service_role_key \
+  HUGGINGFACE_TOKEN=hf_xxx
+
+# Deploy (get the webhook URL from the output)
+cd modal-worker
+modal deploy main.py
+# → Deployed. Webhook URL: https://your-org--podscribe-transcription-webhook.modal.run
+```
+
+Copy the webhook URL into Supabase secrets as `MODAL_WEBHOOK_URL`.
+
+### 4. Mobile app setup
+
+```bash
+# Copy env template
+cp .env.example .env
+
+# Edit .env with your Supabase URL and anon key
+# EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+# EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+
+npm install
+npx expo start
+```
+
+Scan the QR code with Expo Go (iOS/Android) or press `i` for iOS simulator.
+
+## Development Workflow
+
+```bash
+# Run mobile app
+npx expo start
+
+# Test Edge Functions locally
+supabase functions serve
+
+# Test Modal worker locally (CPU, no GPU)
+cd modal-worker
+modal run main.py --audio-url https://example.com/short.mp3 --job-id test --episode-id test --user-id test
+
+# Deploy Modal to production
+modal deploy main.py
+```
+
+## Feature Checklist
+
+- [x] Email/password authentication
+- [x] Podcast search (Podcast Index API)
+- [x] Browse podcast episodes via RSS
+- [x] Start transcription job
+- [x] Real-time job progress polling
+- [x] Full transcript with speaker labels
+- [x] Audio playback with position tracking
+- [x] AI summary (Groq / Llama 3.1)
+- [x] Chapter markers with timestamps
+- [x] Library of saved transcripts
+- [ ] Word-level tap-to-seek (enhancement)
+- [ ] Export transcript as text/PDF
+- [ ] Apple Sign-In
+- [ ] Offline cache
+
+## Architecture: How Transcription Works
+
+```
+1. User taps "Transcribe" on episode
+       ↓
+2. start-transcription Edge Function
+   - Checks rate limit (3/day)
+   - Creates transcription_jobs row (status: queued)
+   - POSTs to Modal webhook (fire & forget)
+       ↓
+3. Modal webhook (fast HTTP endpoint)
+   - Spawns transcribe() as background GPU function
+   - Returns immediately with { job_id }
+       ↓
+4. Modal transcribe() (GPU, async)
+   - Downloads audio
+   - WhisperX large-v3 → segments + word timestamps
+   - PyAnnote diarization → speaker labels
+   - Saves to transcripts table
+   - Updates job status: completed
+   - Calls generate-summary Edge Function
+       ↓
+5. generate-summary Edge Function
+   - Sends transcript to Groq (Llama 3.1 70B)
+   - Parses summary + chapters + topics
+   - Updates transcripts row
+       ↓
+6. App polls transcription_jobs every 3s
+   - On "completed" → loads transcript
+   - Shows transcript + audio player + summary
+```
