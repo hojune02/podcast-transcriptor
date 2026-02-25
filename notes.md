@@ -2,6 +2,16 @@
 
 ## Files & Programs Explained
 
+## supabase
+
+This project uses Supabase as backend, since it requires a relational data management with complex queries. The data stored on the backend such as `users`, `transcript_jobs`, `transcripts` are all related to one another, since we need to distinguish which user has access to which transcripts. To extract data from them, we need to be able to form a complex and systematic queries for the exact information.
+
+Supabase also provides RLS (Row Level Security) with anon key, so that even when the anon key is made public, the user can only access their own transcripts. This promotes per-user isolation within the system.
+
+Supabase uses JWT token for authentication.
+
+Furthermore, Supabase runs edge functions in a serverless manner (on-demand). This ensures that no server-side action waits for user request indefinitely.
+
 ### `supabase/functions/generate-summary`
 
 This is a function that runs on Supabase after it receives a POST request from Modal.com's `transcribe.py`. It receives the `transcript_id` in a json format from Modal.com.
