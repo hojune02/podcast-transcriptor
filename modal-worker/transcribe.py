@@ -72,19 +72,6 @@ def transcribe_audio(audio_path: str, job_id: str, supabase: Client) -> dict:
 
     update_job(supabase, job_id, progress=70)
 
-    # Step 3: Speaker diarization (requires HuggingFace token for pyannote)
-    hf_token = os.environ.get("HUGGINGFACE_TOKEN")
-    if hf_token:
-        try:
-            diarize_model = whisperx.DiarizationPipeline(
-                use_auth_token=hf_token,
-                device=device,
-            )
-            diarize_segments = diarize_model(audio)
-            result = whisperx.assign_word_speakers(diarize_segments, result)
-        except Exception as e:
-            print(f"Diarization failed (continuing without): {e}")
-
     update_job(supabase, job_id, progress=90)
 
     return result
