@@ -2,11 +2,21 @@
 
 ## Tech Stacks & Relevant Files
 
+### Expo
+
+Expo is a framework built on top of React Native, allowing for iOS, Android, and web app from a single Javascript & Typescript code base.
+
+Expo adds a build system, a library ecosystem, file-based routing, and dev tooling on top of React Native.
+
+Expo uses file-based routing, where the directory structure is the routing shown on the apps. The parentheses around certain names indicate that they are routing groups; they don't add a path segment.
+
+`_layout.tsx` wraps how its sibiling screens. This is used in `app/_layout.tsx` to introduce Stack for transitioning between different screens. Those screens push and pop like navigating on a browser.
+
 ### Modal.com
 
 Modal.com is a cloud GPU platform for running Python functions on remotely available GPUs. Decorating functions with `@app.function()` allows for using the GPU resources remotely.
 
-### modal-worker/main.py
+#### modal-worker/main.py
 
 `main.py` firstly specifies the image (container) to be used for running transcription. It downloads all the necessary packages and save the container, so that every time a request for transcription comes, it spins up the container.
 
@@ -16,7 +26,7 @@ Secrets such as SUPABASE_URL or SUPABASE_SERVICE_KEY are derived using `modal.Se
 
 `webhook` is used for receiving transcription requests from Supabase's `start_transcription` edge function. It uses the basic debian image with `fastapi` installed, which is used for opening up the endpoint. This receives a POST request, parses the JSON body into audio_url, job_id, and so on.
 
-### modal-worker/transcribe.py
+#### modal-worker/transcribe.py
 
 This program is run under the transcription image built in `main.py`, under the environment provided as `secrets` (this includes SUPABASE_URL, SUPABASE_SERVICE_KEY).
 
