@@ -64,7 +64,7 @@ export async function getTranscriptByEpisode(episodeId: string): Promise<Transcr
 export async function getUserTranscripts(): Promise<Transcript[]> {
   const { data, error } = await supabase
     .from('transcripts')
-    .select('*, episode:episodes(title, duration_seconds, podcast:podcasts(title, image_url))')
+    .select('id, created_at, summary, key_topics, word_count, duration_seconds, language, episode_id, episode:episodes(title, duration_seconds, podcast:podcasts(title, image_url))')
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];

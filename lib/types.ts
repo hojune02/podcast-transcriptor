@@ -58,12 +58,12 @@ export interface Chapter {
 
 export interface Transcript {
   id: string;
-  job_id: string;
+  job_id?: string;
   episode_id: string;
-  user_id: string;
-  segments: TranscriptSegment[] | null;
+  user_id?: string;
+  segments?: TranscriptSegment[] | null;
   summary: string | null;
-  chapters: Chapter[] | null;
+  chapters?: Chapter[] | null;
   key_topics: string[] | null;
   language: string | null;
   duration_seconds: number | null;

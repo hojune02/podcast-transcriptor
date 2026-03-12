@@ -12,7 +12,7 @@ export default function LibraryScreen() {
   } = useQuery({
     queryKey: ['transcripts'],
     queryFn: getUserTranscripts,
-    refetchInterval: 5000,
+    staleTime: 30 * 1000,
   });
 
   const {
@@ -21,7 +21,10 @@ export default function LibraryScreen() {
   } = useQuery({
     queryKey: ['jobs'],
     queryFn: getUserJobs,
-    refetchInterval: 5000, // poll for job updates
+    refetchInterval: (query) => {
+      const jobs = query.state.data;
+      return jobs && jobs.length > 0 ? 5000 : false;
+    },
   });
 
   const isLoading = isLoadingTranscripts || isLoadingJobs;
